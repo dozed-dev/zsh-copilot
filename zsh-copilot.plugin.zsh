@@ -9,10 +9,6 @@
 (( ! ${+ZSH_COPILOT_DEBUG} )) &&
     typeset -g ZSH_COPILOT_DEBUG=false
 
-# New option to select AI provider
-(( ! ${+ZSH_COPILOT_AI_PROVIDER} )) &&
-    typeset -g ZSH_COPILOT_AI_PROVIDER="openai"
-
 # System prompt
 read -r -d '' SYSTEM_PROMPT <<- EOM
   You will be given the raw input of a shell command. 
@@ -44,9 +40,6 @@ else
 fi
 
 function _suggest_ai() {
-    local OPENAI_API_URL=${OPENAI_API_URL:-"api.openai.com"}
-    local ANTHROPIC_API_URL=${ANTHROPIC_API_URL:-"api.anthropic.com"}
-
     local context_info=""
     if [[ "$ZSH_COPILOT_SEND_CONTEXT" == 'true' ]]; then
         context_info="Context: You are user $(whoami) with id $(id) in directory $(pwd). 
@@ -66,49 +59,7 @@ function _suggest_ai() {
     local data
     local response
 
-    if [[ "$ZSH_COPILOT_AI_PROVIDER" == "openai" ]]; then
-        data="{
-            \"model\": \"gpt-4o-mini\",
-            \"messages\": [
-                {
-                    \"role\": \"system\",
-                    \"content\": \"$full_prompt\"
-                },
-                {
-                    \"role\": \"user\",
-                    \"content\": \"$input\"
-                }
-            ]
-        }"
-        response=$(curl "https://${OPENAI_API_URL}/v1/chat/completions" \
-            --silent \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -d "$data")
-        local message=$(echo "$response" | jq -r '.choices[0].message.content')
-    elif [[ "$ZSH_COPILOT_AI_PROVIDER" == "anthropic" ]]; then
-        data="{
-            \"model\": \"claude-3-5-sonnet-20240620\",
-            \"max_tokens\": 1000,
-            \"system\": \"$full_prompt\",
-            \"messages\": [
-                {
-                    \"role\": \"user\",
-                    \"content\": \"$input\"
-                }
-            ]
-        }"
-        response=$(curl "https://${ANTHROPIC_API_URL}/v1/messages" \
-            --silent \
-            -H "Content-Type: application/json" \
-            -H "x-api-key: $ANTHROPIC_API_KEY" \
-            -H "anthropic-version: 2023-06-01" \
-            -d "$data")
-        local message=$(echo "$response" | jq -r '.content[0].text')
-    else
-        echo "Invalid AI provider selected. Please choose 'openai' or 'anthropic'."
-        return 1
-    fi
+    message=$(llm prompt -m "$full_prompt" "$input")
 
     local first_char=${message:0:1}
     local suggestion=${message:1:${#message}}
@@ -135,7 +86,6 @@ function zsh-copilot() {
     echo "Configurations:"
     echo "    - ZSH_COPILOT_KEY: Key to press to get suggestions (default: ^z, value: $ZSH_COPILOT_KEY)."
     echo "    - ZSH_COPILOT_SEND_CONTEXT: If \`true\`, zsh-copilot will send context information (whoami, shell, pwd, etc.) to the AI model (default: true, value: $ZSH_COPILOT_SEND_CONTEXT)."
-    echo "    - ZSH_COPILOT_AI_PROVIDER: AI provider to use ('openai' or 'anthropic', default: openai, value: $ZSH_COPILOT_AI_PROVIDER)."
 }
 
 zle -N _suggest_ai
