@@ -56,19 +56,17 @@ function _suggest_ai() {
 
     local full_prompt=$(echo "$SYSTEM_PROMPT $context_info" | tr -d '\n')
 
-    local data
     local response
 
-    response="$(llm prompt -m "$full_prompt" "$input")"
-    message="$response"
-    regexp-replace response '<think>.*</think>[[:space:][:blank:]]*' ''
+    response="$(llm prompt -s "$full_prompt" "$input")"
+    message="$(sed -n '/^\([+=].*\)$/p' <<< $response)"
 
     local first_char=${message:0:1}
     local suggestion=${message:1:${#message}}
     
     if [[ "$ZSH_COPILOT_DEBUG" == 'true' ]]; then
         touch /tmp/zsh-copilot.log
-        echo "$(date);INPUT:$input;RESPONSE:$response;FIRST_CHAR:$first_char;SUGGESTION:$suggestion:DATA:$data" >> /tmp/zsh-copilot.log
+        echo "$(date);INPUT:$input;RESPONSE:$response;FIRST_CHAR:$first_char;SUGGESTION:$suggestion" >> /tmp/zsh-copilot.log
     fi
 
     if [[ "$first_char" == '=' ]]; then
