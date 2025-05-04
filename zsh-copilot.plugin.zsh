@@ -59,7 +59,9 @@ function _suggest_ai() {
     local data
     local response
 
-    message=$(llm prompt -m "$full_prompt" "$input")
+    response="$(llm prompt -m "$full_prompt" "$input")"
+    message="$response"
+    regexp-replace response '<think>.*</think>[[:space:][:blank:]]*' ''
 
     local first_char=${message:0:1}
     local suggestion=${message:1:${#message}}
